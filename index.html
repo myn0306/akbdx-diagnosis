@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Excel・紙・FAX　今いくら？</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #0d2b2b;
+    --ink-soft: #4a6a6a;
+    --bg: #f5f9f8;
+    --surface: #ffffff;
+    --surface2: #e8f2f0;
+    --green: #1a7a6e;
+    --green-dark: #0d5a50;
+    --green-light: #2ea89a;
+    --green-pale: #d0ebe8;
+    --orange: #e87722;
+    --white: #ffffff;
+    --line-color: rgba(13,43,43,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--bg);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 400;
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 16px;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    box-shadow: 0 0 40px rgba(0,0,0,0.06);
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--surface2);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    transition: width 0.4s ease;
+  }
+
+  .step-indicator {
+    padding: 16px 24px 0;
+    font-size: 12px;
+    color: var(--green-light);
+    letter-spacing: 0.1em;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    padding: 24px;
+    animation: fadeIn 0.3s ease;
+  }
+  .screen.active { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* TOP */
+  .top-screen {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 48px 32px;
+    background: var(--white);
+    min-height: 100vh;
+  }
+
+  .top-logo {
+    width: 88px;
+    height: 88px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(26,122,110,0.2);
+  }
+
+  .top-badge {
+    display: inline-block;
+    background: var(--green-pale);
+    color: var(--green-dark);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--green-light);
+    margin-bottom: 20px;
+  }
+
+  .top-title {
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .top-title span { color: var(--green); }
+
+  .top-sub {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.9;
+    margin-bottom: 48px;
+  }
+
+  .start-btn {
+    display: block;
+    width: 100%;
+    background: var(--green);
+    color: var(--white);
+    border: none;
+    padding: 20px;
+    font-size: 17px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    border-radius: 6px;
+  }
+  .start-btn:active { background: var(--green-dark); }
+
+  .top-note {
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* QUESTIONS */
+  .q-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+
+  .q-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green);
+    letter-spacing: 0.03em;
+    margin-bottom: 10px;
+    margin-top: 24px;
+  }
+
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .industry-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .choice-btn {
+    background: var(--bg);
+    border: 2px solid var(--line-color);
+    padding: 16px 12px;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 400;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 8px;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .choice-btn:hover:not(.selected) { border-color: var(--green-light); }
+
+  .choice-btn.selected {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--white);
+    font-weight: 500;
+  }
+
+  .next-btn {
+    display: block;
+    width: 100%;
+    background: var(--green);
+    color: var(--white);
+    border: none;
+    padding: 18px;
+    font-size: 16px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: auto;
+    padding-top: 24px;
+    transition: background 0.2s;
+    border-radius: 6px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .next-btn.enabled { opacity: 1; pointer-events: all; }
+  .next-btn.enabled:active { background: var(--green-dark); }
+
+  .spacer { flex: 1; }
+
+  /* RESULT */
+  .result-screen { padding: 0; }
+
+  .result-header {
+    background: var(--green-dark);
+    padding: 32px 24px 28px;
+    text-align: center;
+  }
+
+  .result-header-label {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: #7de8d8;
+    margin-bottom: 16px;
+  }
+
+  .result-total-label {
+    font-size: 14px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 8px;
+  }
+
+  .result-total {
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .result-total-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+  }
+
+  .result-body { padding: 28px 24px; }
+
+  .result-section-title {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--green-light);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .chart-wrap {
+    background: var(--surface2);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+
+  .chart-canvas-wrap {
+    position: relative;
+    height: 200px;
+    margin-bottom: 16px;
+  }
+
+  .chart-legend { display: flex; flex-direction: column; gap: 10px; }
+  .legend-item { display: flex; align-items: center; justify-content: space-between; }
+  .legend-left { display: flex; align-items: center; gap: 10px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .legend-name { font-size: 14px; color: var(--ink); }
+  .legend-amount { font-size: 16px; font-weight: 700; color: var(--ink); }
+
+  .time-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .time-card {
+    background: var(--surface2);
+    padding: 16px;
+    border-radius: 10px;
+    text-align: center;
+  }
+
+  .time-card-label { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+
+  .time-card-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .time-card-unit { font-size: 12px; color: var(--ink-soft); }
+
+  .improvement-wrap {
+    background: var(--surface2);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .improvement-header {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    background: var(--green-dark);
+    padding: 10px 14px;
+  }
+
+  .improvement-header span {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.05em;
+  }
+
+  .improvement-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line-color);
+    align-items: center;
+    background: var(--white);
+  }
+
+  .improvement-row:last-child { border-bottom: none; }
+  .improvement-row-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .improvement-row-money { font-size: 16px; font-weight: 700; }
+  .improvement-row-time { font-size: 13px; color: var(--ink-soft); }
+
+  .improvement-total-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    padding: 14px;
+    background: var(--green);
+  }
+
+  .improvement-total-label { font-size: 13px; font-weight: 700; color: var(--white); }
+  .improvement-total-money { font-size: 20px; font-weight: 700; color: var(--white); }
+  .improvement-total-time { font-size: 13px; color: rgba(255,255,255,0.75); font-weight: 500; }
+
+  .improvement-note {
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: right;
+    margin-bottom: 28px;
+  }
+
+  .closing-msg {
+    background: var(--green-pale);
+    border-left: 4px solid var(--green);
+    padding: 20px 24px;
+    margin: 0 -24px;
+  }
+
+  .closing-msg p {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green-dark);
+    line-height: 1.7;
+  }
+
+  .pdf-btn {
+    display: block;
+    width: 100%;
+    background: var(--surface2);
+    color: var(--ink);
+    border: 1px solid var(--line-color);
+    padding: 16px;
+    font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 20px;
+    border-radius: 6px;
+    letter-spacing: 0.05em;
+    transition: background 0.2s;
+  }
+  .pdf-btn:active { background: var(--green-pale); }
+
+  .restart-btn {
+    display: block;
+    width: 100%;
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--line-color);
+    padding: 14px;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    margin-top: 10px;
+    border-radius: 6px;
+    margin-bottom: 32px;
+  }
+
+  .line-cta {
+    background: var(--white);
+    border: 2px solid var(--green);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 20px 0;
+    text-align: center;
+  }
+
+  .line-cta-label {
+    display: inline-block;
+    background: var(--green);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+
+  .line-cta-text {
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.8;
+    margin-bottom: 16px;
+  }
+
+  .line-btn {
+    display: inline-block;
+    background-color: var(--white);
+    color: #06C755;
+    border: 2px solid #06C755;
+    padding: 14px 32px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .line-note {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 12px;
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    .app { box-shadow: none; }
+    .screen { display: flex !important; }
+    .screen:not(.result-screen) { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="progress-bar no-print">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <!-- STEP 0: TOP -->
+  <div class="screen top-screen active" id="screen0">
+    <img src="icon-192.png" alt="AKBDXソリューションズ" class="top-logo">
+    <div class="top-badge">AKBDXソリューションズ</div>
+    <h1 class="top-title">Excel・紙・FAX<br><span>今いくら？</span></h1>
+    <p class="top-sub">
+      業務にかかっているコストから<br>
+      改善による費用対効果をまずは<br>
+      携帯一つで手軽に診断
+    </p>
+    <button class="start-btn" onclick="goTo(1)">診断してみる</button>
+    <p class="top-note">所要時間：約5分</p>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="screen" id="screen1">
+    <div class="step-indicator">STEP 1 / 4</div>
+    <div style="height:20px"></div>
+    <h2 class="q-title">はじめに少しだけ<br>教えてください</h2>
+
+    <p class="q-label">従業員数は？</p>
+    <div class="choices" id="emp-choices">
+      <button class="choice-btn" onclick="select('emp','1-5')">1〜5人</button>
+      <button class="choice-btn" onclick="select('emp','6-10')">6〜10人</button>
+      <button class="choice-btn" onclick="select('emp','11-20')">11〜20人</button>
+      <button class="choice-btn" onclick="select('emp','21-50')">21〜50人</button>
+      <button class="choice-btn" onclick="select('emp','51+')" style="grid-column:1/-1">51人以上</button>
+    </div>
+
+    <p class="q-label">業種は？</p>
+    <div class="industry-choices" id="ind-choices">
+      <button class="choice-btn" onclick="select('ind','製造業')">製造業</button>
+      <button class="choice-btn" onclick="select('ind','建設業')">建設業</button>
+      <button class="choice-btn" onclick="select('ind','卸売・物流')">卸売・物流</button>
+      <button class="choice-btn" onclick="select('ind','小売業')">小売業</button>
+      <button class="choice-btn" onclick="select('ind','サービス業')">サービス業</button>
+      <button class="choice-btn" onclick="select('ind','その他')">その他</button>
+    </div>
+
+    <p class="q-label">社員の平均月給（おおよそ）は？</p>
+    <div class="choices" id="sal-choices">
+      <button class="choice-btn" onclick="select('sal','20')">20万円台</button>
+      <button class="choice-btn" onclick="select('sal','30')">30万円台</button>
+      <button class="choice-btn" onclick="select('sal','40')">40万円台</button>
+      <button class="choice-btn" onclick="select('sal','50')">50万円以上</button>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="next-btn" id="next1" onclick="goTo(2)">次へ　→</button>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="screen" id="screen2">
+    <div class="step-indicator">STEP 2 / 4</div>
+    <div style="height:20px"></div>
+    <h2 class="q-title">Excelについて<br>教えてください</h2>
+
+    <p class="q-label">月末の集計やデータのまとめ直しなど<br>Excelを使った作業は<br>週にどのくらいありますか？</p>
+    <div class="choices" id="exceltime-choices">
+      <button class="choice-btn" onclick="select('exceltime','0.5')">1時間未満</button>
+      <button class="choice-btn" onclick="select('exceltime','2')">1〜3時間</button>
+      <button class="choice-btn" onclick="select('exceltime','4')">3〜5時間</button>
+      <button class="choice-btn" onclick="select('exceltime','6')">5時間以上</button>
+    </div>
+
+    <p class="q-label">その作業をしているのは<br>何人くらいですか？</p>
+    <div class="choices" id="excelppl-choices">
+      <button class="choice-btn" onclick="select('excelppl','1')">1人</button>
+      <button class="choice-btn" onclick="select('excelppl','2.5')">2〜3人</button>
+      <button class="choice-btn" onclick="select('excelppl','4.5')">4〜5人</button>
+      <button class="choice-btn" onclick="select('excelppl','7')">6人以上</button>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="next-btn" id="next2" onclick="goTo(3)">次へ　→</button>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="screen" id="screen3">
+    <div class="step-indicator">STEP 3 / 4</div>
+    <div style="height:20px"></div>
+    <h2 class="q-title">紙の書類について<br>教えてください</h2>
+
+    <p class="q-label">書類の確認や整理にかかる時間は<br>1日どのくらいありますか？</p>
+    <div class="choices" id="papertime-choices">
+      <button class="choice-btn" onclick="select('papertime','0')">ほぼない</button>
+      <button class="choice-btn" onclick="select('papertime','10')">5〜15分</button>
+      <button class="choice-btn" onclick="select('papertime','22')">15〜30分</button>
+      <button class="choice-btn" onclick="select('papertime','40')">30分以上</button>
+    </div>
+
+    <p class="q-label">書類の記入ミスや<br>入力し直しは月に何回くらい？</p>
+    <div class="choices" id="papermiss-choices">
+      <button class="choice-btn" onclick="select('papermiss','0')">ほぼない</button>
+      <button class="choice-btn" onclick="select('papermiss','1.5')">1〜2回</button>
+      <button class="choice-btn" onclick="select('papermiss','4')">3〜5回</button>
+      <button class="choice-btn" onclick="select('papermiss','7')">6回以上</button>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="next-btn" id="next3" onclick="goTo(4)">次へ　→</button>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="screen" id="screen4">
+    <div class="step-indicator">STEP 4 / 4</div>
+    <div style="height:20px"></div>
+    <h2 class="q-title">FAXについて<br>教えてください</h2>
+
+    <p class="q-label">FAXを送った後や受け取った後に<br>「届きましたか？」と確認の電話を<br>することはありますか？</p>
+    <div class="choices" id="faxcall-choices">
+      <button class="choice-btn" onclick="select('faxcall','0')">ほぼない</button>
+      <button class="choice-btn" onclick="select('faxcall','1.5')">週に1〜2回</button>
+      <button class="choice-btn" onclick="select('faxcall','5')">ほぼ毎日</button>
+      <button class="choice-btn" onclick="select('faxcall','15')">1日に何度も</button>
+    </div>
+
+    <p class="q-label">FAXの内容を<br>別のところに入力し直す<br>作業はありますか？</p>
+    <div class="choices" id="faxinput-choices">
+      <button class="choice-btn" onclick="select('faxinput','0')">ない</button>
+      <button class="choice-btn" onclick="select('faxinput','0.5')">たまにある</button>
+      <button class="choice-btn" onclick="select('faxinput','1.5')">よくある</button>
+      <button class="choice-btn" onclick="select('faxinput','3')">毎日ある</button>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="next-btn" id="next4" onclick="calcAndShow()">結果を見る　→</button>
+  </div>
+
+  <!-- STEP 5: RESULT -->
+  <div class="screen result-screen" id="screen5">
+    <div class="result-header">
+      <p class="result-header-label">診断結果</p>
+      <p class="result-total-label">現在の業務コスト（年間試算）</p>
+      <p class="result-total" id="resultTotal">－－万円</p>
+      <p class="result-total-sub">Excel・紙・FAXにかかっている年間の人件費換算です</p>
+    </div>
+
+    <div class="result-body">
+      <p class="result-section-title">現在の内訳</p>
+      <div class="chart-wrap">
+        <div class="chart-canvas-wrap">
+          <canvas id="costChart"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-left">
+              <div class="legend-dot" style="background:#1a7a6e"></div>
+              <span class="legend-name">Excel</span>
+            </div>
+            <span class="legend-amount" id="legendExcel">－万円</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left">
+              <div class="legend-dot" style="background:#2ea89a"></div>
+              <span class="legend-name">紙</span>
+            </div>
+            <span class="legend-amount" id="legendPaper">－万円</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left">
+              <div class="legend-dot" style="background:#e87722"></div>
+              <span class="legend-name">FAX</span>
+            </div>
+            <span class="legend-amount" id="legendFax">－万円</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-summary">
+        <div class="time-card">
+          <p class="time-card-label">時間に換算すると</p>
+          <p class="time-card-num" id="totalHours">－－</p>
+          <p class="time-card-unit">時間 / 年</p>
+        </div>
+        <div class="time-card">
+          <p class="time-card-label">毎日の負担</p>
+          <p class="time-card-num" id="dailyMins">－－</p>
+          <p class="time-card-unit">分 / 日</p>
+        </div>
+      </div>
+
+      <p class="result-section-title">改善した場合の試算</p>
+      <div class="improvement-wrap">
+        <div class="improvement-header">
+          <span></span>
+          <span>削減できる金額</span>
+          <span>確保できる時間</span>
+        </div>
+        <div class="improvement-row">
+          <span class="improvement-row-name">Excel</span>
+          <span class="improvement-row-money" style="color:#1a7a6e" id="impExcelMoney">－万円</span>
+          <span class="improvement-row-time" id="impExcelTime">年間－時間</span>
+        </div>
+        <div class="improvement-row">
+          <span class="improvement-row-name">紙</span>
+          <span class="improvement-row-money" style="color:#2ea89a" id="impPaperMoney">－万円</span>
+          <span class="improvement-row-time" id="impPaperTime">年間－時間</span>
+        </div>
+        <div class="improvement-row">
+          <span class="improvement-row-name">FAX</span>
+          <span class="improvement-row-money" style="color:#e87722" id="impFaxMoney">－万円</span>
+          <span class="improvement-row-time" id="impFaxTime">年間－時間</span>
+        </div>
+        <div class="improvement-total-row">
+          <span class="improvement-total-label">合計</span>
+          <span class="improvement-total-money" id="impTotalMoney">－万円</span>
+          <span class="improvement-total-time" id="impTotalTime">年間－時間</span>
+        </div>
+      </div>
+      <p class="improvement-note">※各業種・企業規模の実態データをもとにした試算です。実際の改善効果はヒアリングで確認します。</p>
+
+      <div class="closing-msg">
+        <p>気になったところから、<br>始められます。</p>
+      </div>
+
+      <button class="pdf-btn no-print" onclick="window.print()">結果をPDFで保存する</button>
+
+      <div class="line-cta no-print">
+        <span class="line-cta-label">無料相談</span>
+        <p class="line-cta-text">
+          より丁寧なヒアリングをもとに、<br>御社ならではの可能性をお伝えできます。
+        </p>
+        <a href="https://lin.ee/PMfduX5" class="line-btn">
+          💬 LINEで気軽に相談する
+        </a>
+        <p class="line-note">売り込みや契約を前提としたご案内は行いません。</p>
+      </div>
+
+      <button class="restart-btn no-print" onclick="restart()">もう一度診断する</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const answers = {
+    emp: null, ind: null, sal: null,
+    exceltime: null, excelppl: null,
+    papertime: null, papermiss: null,
+    faxcall: null, faxinput: null
+  };
+
+  const screenRequirements = {
+    1: ['emp', 'ind', 'sal'],
+    2: ['exceltime', 'excelppl'],
+    3: ['papertime', 'papermiss'],
+    4: ['faxcall', 'faxinput']
+  };
+
+  const groupMap = {
+    'emp': 'emp-choices', 'ind': 'ind-choices', 'sal': 'sal-choices',
+    'exceltime': 'exceltime-choices', 'excelppl': 'excelppl-choices',
+    'papertime': 'papertime-choices', 'papermiss': 'papermiss-choices',
+    'faxcall': 'faxcall-choices', 'faxinput': 'faxinput-choices'
+  };
+
+  function select(key, value) {
+    answers[key] = parseFloat(value) || value;
+    const group = document.getElementById(groupMap[key]);
+    if (group) {
+      group.querySelectorAll('.choice-btn').forEach(btn => btn.classList.remove('selected'));
+      event.target.classList.add('selected');
+    }
+    checkNextBtn();
+  }
+
+  function checkNextBtn() {
+    const current = getCurrentScreen();
+    if (!current) return;
+    const reqs = screenRequirements[current];
+    if (!reqs) return;
+    const allAnswered = reqs.every(k => answers[k] !== null);
+    const btn = document.getElementById('next' + current);
+    if (btn) btn.classList.toggle('enabled', allAnswered);
+  }
+
+  function getCurrentScreen() {
+    for (let i = 1; i <= 4; i++) {
+      if (document.getElementById('screen' + i).classList.contains('active')) return i;
+    }
+    return null;
+  }
+
+  function goTo(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen' + n).classList.add('active');
+    const progress = n === 0 ? 0 : (n / 5) * 100;
+    document.getElementById('progressFill').style.width = progress + '%';
+    window.scrollTo(0, 0);
+  }
+
+  function calcAndShow() {
+    const salMap = { '20': 20, '30': 30, '40': 40, '50': 55 };
+    const monthlySal = salMap[answers.sal] || 25;
+    const hourlyWage = Math.round(monthlySal * 10000 / 160);
+
+    const excelWeeklyHours = answers.exceltime || 0;
+    const excelPeople = answers.excelppl || 1;
+    const excelYearlyHours = excelWeeklyHours * 50 * excelPeople;
+    const excelCost = Math.round(excelYearlyHours * hourlyWage);
+
+    const paperDailyMins = answers.papertime || 0;
+    const paperMissPerMonth = answers.papermiss || 0;
+    const paperYearlyHours = (paperDailyMins / 60) * 240 + (paperMissPerMonth * 1.0 * 12);
+    const paperCost = Math.round(paperYearlyHours * hourlyWage);
+
+    const faxCallPerWeek = answers.faxcall || 0;
+    const faxInputPerDay = answers.faxinput || 0;
+    const faxYearlyHours = (faxCallPerWeek * 15 / 60 * 50) + (faxInputPerDay * 20 / 60 * 240);
+    const faxCost = Math.round(faxYearlyHours * hourlyWage);
+
+    const totalCost = excelCost + paperCost + faxCost;
+    const totalHours = Math.round(excelYearlyHours + paperYearlyHours + faxYearlyHours);
+    const dailyMins = Math.round((totalHours / 240) * 60);
+
+    const impExcelCost = Math.round(excelCost * 0.5);
+    const impPaperCost = Math.round(paperCost * 0.5);
+    const impFaxCost = Math.round(faxCost * 0.5);
+    const impTotalCost = impExcelCost + impPaperCost + impFaxCost;
+
+    const impExcelHours = Math.round(excelYearlyHours * 0.5);
+    const impPaperHours = Math.round(paperYearlyHours * 0.5);
+    const impFaxHours = Math.round(faxYearlyHours * 0.5);
+    const impTotalHours = impExcelHours + impPaperHours + impFaxHours;
+
+    function toMan(yen) { return Math.round(yen / 10000); }
+
+    document.getElementById('resultTotal').textContent = toMan(totalCost).toLocaleString() + '万円';
+    document.getElementById('legendExcel').textContent = toMan(excelCost).toLocaleString() + '万円';
+    document.getElementById('legendPaper').textContent = toMan(paperCost).toLocaleString() + '万円';
+    document.getElementById('legendFax').textContent = toMan(faxCost).toLocaleString() + '万円';
+    document.getElementById('totalHours').textContent = totalHours.toLocaleString();
+    document.getElementById('dailyMins').textContent = dailyMins.toLocaleString();
+    document.getElementById('impExcelMoney').textContent = toMan(impExcelCost).toLocaleString() + '万円';
+    document.getElementById('impPaperMoney').textContent = toMan(impPaperCost).toLocaleString() + '万円';
+    document.getElementById('impFaxMoney').textContent = toMan(impFaxCost).toLocaleString() + '万円';
+    document.getElementById('impTotalMoney').textContent = toMan(impTotalCost).toLocaleString() + '万円';
+    document.getElementById('impExcelTime').textContent = '年間 ' + impExcelHours.toLocaleString() + '時間';
+    document.getElementById('impPaperTime').textContent = '年間 ' + impPaperHours.toLocaleString() + '時間';
+    document.getElementById('impFaxTime').textContent = '年間 ' + impFaxHours.toLocaleString() + '時間';
+    document.getElementById('impTotalTime').textContent = '年間 ' + impTotalHours.toLocaleString() + '時間';
+
+    setTimeout(() => {
+      const ctx = document.getElementById('costChart').getContext('2d');
+      if (window.costChartInstance) window.costChartInstance.destroy();
+      window.costChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Excel', '紙', 'FAX'],
+          datasets: [{
+            data: [toMan(excelCost), toMan(paperCost), toMan(faxCost)],
+            backgroundColor: ['#1a7a6e', '#2ea89a', '#e87722'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.toLocaleString() + '万円' } }
+          },
+          cutout: '65%'
+        }
+      });
+    }, 100);
+
+    goTo(5);
+    document.getElementById('progressFill').style.width = '100%';
+  }
+
+  function restart() {
+    Object.keys(answers).forEach(k => answers[k] = null);
+    document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.next-btn').forEach(b => b.classList.remove('enabled'));
+    goTo(0);
+  }
+</script>
+</body>
+</html>
