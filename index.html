@@ -420,9 +420,60 @@
     margin-bottom: 32px;
   }
 
-  .line-cta {
+  /* 業界平均比較 */
+  .benchmark-wrap {
     background: var(--white);
     border: 2px solid var(--green);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+
+  .benchmark-label {
+    display: inline-block;
+    background: var(--green);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+
+  .benchmark-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line-color);
+  }
+
+  .benchmark-row:last-of-type { border-bottom: none; }
+
+  .benchmark-row-label { font-size: 13px; color: var(--ink-soft); }
+
+  .benchmark-row-value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .benchmark-diff {
+    background: #fff3e0;
+    border: 1px solid var(--orange);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 12px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--orange);
+    font-weight: 700;
+    line-height: 1.7;
+  }
+
+  /* LINE CTA */
+  .line-cta {
+    background: var(--surface2);
     border-radius: 10px;
     padding: 24px;
     margin: 20px 0;
@@ -448,16 +499,38 @@
     margin-bottom: 16px;
   }
 
+  .line-input {
+    display: block;
+    width: 100%;
+    background: var(--white);
+    border: 1px solid var(--line-color);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--ink);
+    margin-bottom: 10px;
+    outline: none;
+  }
+
+  .line-input:focus { border-color: var(--green); }
+
+  .line-input::placeholder { color: #aaa; }
+
   .line-btn {
-    display: inline-block;
-    background-color: var(--white);
-    color: #06C755;
-    border: 2px solid #06C755;
-    padding: 14px 32px;
+    display: block;
+    width: 100%;
+    background-color: #06C755;
+    color: white;
+    border: none;
+    padding: 16px;
     border-radius: 6px;
     font-size: 16px;
     font-weight: 700;
     text-decoration: none;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    margin-top: 4px;
   }
 
   .line-note {
@@ -699,14 +772,33 @@
 
       <button class="pdf-btn no-print" onclick="window.print()">結果をPDFで保存する</button>
 
+      <!-- 業界平均比較 -->
+      <div class="benchmark-wrap no-print" id="benchmarkWrap">
+        <span class="benchmark-label">業界比較</span>
+        <div class="benchmark-row">
+          <span class="benchmark-row-label">あなたの会社（試算）</span>
+          <span class="benchmark-row-value" id="benchmarkYours" style="color:var(--orange)">－万円</span>
+        </div>
+        <div class="benchmark-row">
+          <span class="benchmark-row-label">改善済み企業の平均</span>
+          <span class="benchmark-row-value" id="benchmarkAvg" style="color:var(--green)">－万円</span>
+        </div>
+        <div class="benchmark-diff" id="benchmarkDiff">
+          計算中...
+        </div>
+      </div>
+
+      <!-- LINE CTA -->
       <div class="line-cta no-print">
-        <span class="line-cta-label">無料相談</span>
+        <span class="line-cta-label">詳細レポートを受け取る</span>
         <p class="line-cta-text">
-          より丁寧なヒアリングをもとに、<br>御社ならではの可能性をお伝えできます。
+          業界比較レポートをLINEでお送りします。<br>よろしければ会社名・お名前をどうぞ。
         </p>
-        <a href="https://lin.ee/PMfduX5" class="line-btn">
-          💬 LINEで気軽に相談する
-        </a>
+        <input type="text" class="line-input" id="inputCompany" placeholder="会社名（任意）">
+        <input type="text" class="line-input" id="inputName" placeholder="お名前（任意）">
+        <button class="line-btn" onclick="openLine()">
+          💬 LINEで詳細レポートを受け取る
+        </button>
         <p class="line-note">売り込みや契約を前提としたご案内は行いません。</p>
       </div>
 
@@ -852,6 +944,69 @@
 
     goTo(5);
     document.getElementById('progressFill').style.width = '100%';
+    showBenchmark(toMan(totalCost));
+  }
+
+  // 業界別・改善済み企業平均（低め設定）
+  const industryAvg = {
+    '製造業':    80,
+    '建設業':    70,
+    '卸売・物流': 90,
+    '小売業':    60,
+    'サービス業': 50,
+    'その他':    65
+  };
+
+  // 業界比較表示
+  function showBenchmark(totalMan) {
+    const ind = answers.ind || 'その他';
+    const avg = industryAvg[ind] || 65;
+    const diff = totalMan - avg;
+
+    document.getElementById('benchmarkYours').textContent = totalMan.toLocaleString() + '万円';
+    document.getElementById('benchmarkAvg').textContent = avg.toLocaleString() + '万円';
+
+    const diffEl = document.getElementById('benchmarkDiff');
+    if (diff > 0) {
+      diffEl.style.background = '#fff3e0';
+      diffEl.style.borderColor = 'var(--orange)';
+      diffEl.style.color = 'var(--orange)';
+      diffEl.innerHTML = `改善済み企業と比べて <strong>${diff.toLocaleString()}万円</strong> 多くかかっています。<br>改善できる余地があります！`;
+    } else {
+      diffEl.style.background = '#e8f2f0';
+      diffEl.style.borderColor = 'var(--green)';
+      diffEl.style.color = 'var(--green)';
+      diffEl.innerHTML = `すでに業界平均より効率的です！<br>さらに最適化できる可能性があります。`;
+    }
+  }
+
+  // LINEを開く（診断結果＋会社名・名前を自動入力）
+  function openLine() {
+    const company = document.getElementById('inputCompany').value || '未入力';
+    const name = document.getElementById('inputName').value || '未入力';
+    const ind = answers.ind || '未選択';
+    const emp = answers.emp || '未選択';
+    const total = document.getElementById('resultTotal').textContent;
+    const impTotal = document.getElementById('impTotalMoney').textContent;
+    const impTime = document.getElementById('impTotalTime').textContent;
+    const avg = industryAvg[ind] || 65;
+
+    const msg = `【診断結果レポート】
+会社名：${company}
+お名前：${name}
+━━━━━━━━━━━━
+業種：${ind}
+従業員：${emp}人
+年間コスト試算：${total}
+改善済み企業平均：${avg}万円
+━━━━━━━━━━━━
+削減できる金額：${impTotal}
+確保できる時間：${impTime}
+━━━━━━━━━━━━
+詳細レポートをお願いします。`;
+
+    const url = `https://line.me/R/oaMessage/PMfduX5/?${encodeURIComponent(msg)}`;
+    window.open('https://lin.ee/PMfduX5', '_blank');
   }
 
   function restart() {
